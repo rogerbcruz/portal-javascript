@@ -4,7 +4,8 @@ class UserController {
         this.formEl = document.getElementById(formId);
         this.tableEl = document.getElementById(tableId);
 
-        this.onSubmit()
+        this.onSubmit();
+        this.onEdit();
     }
 
     onSubmit() {
@@ -15,6 +16,10 @@ class UserController {
             let values = this.getValues();
 
             btn.disabled = true;
+
+            if (!values) {
+                return false;
+            }
 
             this.getPhoto().then(
                 (content) => {
@@ -28,6 +33,12 @@ class UserController {
                 }
             );
         });
+    }
+
+    onEdit(){
+        document.querySelector("#box-user-update .btn-cancel").addEventListener("click", e => {
+            this.showPanelUpdate();
+        })
     }
 
     getPhoto() {
@@ -61,8 +72,14 @@ class UserController {
 
     getValues() {
         let user = {};
-
+        let formIsValid = true;
         [...this.formEl.elements].forEach((field, index) => {
+
+            if (['name', 'email', 'password'].indexOf(field.name) > -1 && !field.value) {
+                field.parentElement.classList.add('has-error');
+                formIsValid = false;
+            }
+
             if (field.name == "gender") {
                 if (field.checked) {
                     user[field.name] = field.value;
@@ -73,6 +90,10 @@ class UserController {
                 user[field.name] = field.value;
             }
         });
+
+        if (!formIsValid) {
+            return false;
+        }
 
         return new User(
             user.name,
@@ -92,19 +113,63 @@ class UserController {
 
         let tr = document.createElement('tr');
 
+        tr.dataset.user = JSON.stringify(dataUser);
+
         tr.innerHTML = ` 
             <td><img src="${dataUser.photo}" alt="User Image" class="img-circle img-sm"></td>
             <td>${dataUser.name}</td>
             <td>${dataUser.email}</td>
             <td>${(dataUser.admin) ? 'Sim' : 'Não'}</td>
-            <td>${dataUser.register}</td>
+            <td>${utils.dateFormate(dataUser.register)}</td>
             <td>
-                <button type="button" class="btn btn-primary btn-xs btn-flat">Editar</button>
+                <button type="button" class="btn btn-primary btn-edit btn-xs btn-flat">Editar</button>
                 <button type="button" class="btn btn-danger btn-xs btn-flat">Excluir</button>
             </td>`;
 
+        tr.querySelector(".btn-edit").addEventListener("click", e => {
+            let json = JSON.parse(tr.dataset.user);
+            let form = document.querySelector("#form-user-update")
+
+            for(let name in json){
+                console.log(form.querySelector("[name=" + name.replace("_","")+"]"))
+                let field = form.querySelector("[name=" + name.replace("_","")+"]")
+
+                if(field){
+                    if(field.type == 'file') continue;
+                    field.value = json[name];
+                }
+            }
+
+        })
+        this.showPanelCreate();
+
         this.tableEl.appendChild(tr)
+
+        this.updateCount();
     }
 
+    showPanelUpdate(){
+        document.querySelector("#box-user-create").style.display = "block"
+        document.querySelector("#box-user-update").style.display = "none"
+    }
 
+    showPanelCreate(){
+        document.querySelector("#box-user-create").style.display = "none"
+        document.querySelector("#box-user-update").style.display = "block"
+    }
+
+    updateCount() {
+        let numberUsers = 0;
+        let numberAdmin = 0;
+
+        [...this.tableEl.children].forEach(tr => {
+            numberUsers++;
+            let user = JSON.parse(tr.dataset.user);
+
+            if (user._admin) numberAdmin++;
+        });
+
+        document.querySelector("#number-users").innerHTML = numberUsers;
+        document.querySelector("#number-users-admin").innerHTML = numberAdmin;
+    }
 }
